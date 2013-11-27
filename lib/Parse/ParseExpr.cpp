@@ -1336,6 +1336,11 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
   // parsed, see if there are any postfix-expression pieces here.
   SourceLocation Loc;
   while (1) {
+
+    bool insideKwIdentifier = false;
+    StringRef identifierStr;
+    SourceLocation identifierStrLoc;
+
     switch (Tok.getKind()) {
     case tok::code_completion:
       if (InMessageExpression)
@@ -1344,7 +1349,7 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       Actions.CodeCompletePostfixExpression(getCurScope(), LHS);
       cutOffParsing();
       return ExprError();
-        
+
     case tok::identifier:
       // If we see identifier: after an expression, and we're not already in a
       // message send, then this is probably a message send with a missing
@@ -1496,6 +1501,99 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       tok::TokenKind OpKind = Tok.getKind();
       SourceLocation OpLoc = ConsumeToken();  // Eat the "." or "->" token.
 
+      if (Tok.is(tok::kw___identifier)){
+        insideKwIdentifier = true;
+        ConsumeToken();
+        BalancedDelimiterTracker Parens(*this, tok::l_paren);
+        if (Parens.expectAndConsume(diag::err_expected_lparen))
+          return ExprError();
+
+
+        if (isTokenStringLiteral()) {
+          // TODO is this the proper location ?
+          identifierStrLoc = Tok.getLocation();
+          ExprResult exprResult = ParseStringLiteralExpression(false);
+          if (exprResult.isInvalid()) {
+            return ExprError();
+          }
+          Expr* expr = exprResult.get();
+          StringLiteral* stringLiteral = dyn_cast<StringLiteral>(expr);
+          if (!stringLiteral) {
+            return ExprError();
+          }
+          identifierStr = stringLiteral->getString();
+          llvm::errs() << "string literal in __identifier: "  << identifierStr << "\n";
+          llvm::errs() << "source location of string literal in __identifier: ";
+          identifierStrLoc.dump(this->Diags.getSourceManager());
+          llvm::errs() << "\n";
+        }
+
+        // parse the expression inside kw___identifier as a constant expression
+        else if (Tok.is(tok::identifier)) {
+          identifierStrLoc = Tok.getLocation();
+          ExprResult constExprResult(ParseConstantExpression());
+          if (constExprResult.isInvalid()) {
+            return ExprError();
+          }
+          DeclRefExpr* declRefExpr = dyn_cast<DeclRefExpr>(constExprResult.get());
+          if (!declRefExpr) {
+            return ExprError();
+          }
+          declRefExpr->dump();
+          ValueDecl* valueDecl = declRefExpr->getDecl();
+          VarDecl* varDecl = dyn_cast<VarDecl>(valueDecl);
+          if (!varDecl) {
+            llvm::errs() << "Not VarDecl \n";
+            return ExprError();
+          }
+          Expr* initExpr = varDecl->getInit();
+          StringLiteral* stringLiteral = dyn_cast<StringLiteral>(initExpr);
+          if (!stringLiteral) {
+            llvm::errs() << "Not StringLIteral \n";
+            return ExprError();
+          }
+          identifierStr = stringLiteral->getString();
+
+          llvm::errs() << "string literal in __identifier: "  << identifierStr << "\n";
+          llvm::errs() << "source location of string literal in __identifier: ";
+          identifierStrLoc.dump(this->Diags.getSourceManager());
+          llvm::errs() << "\n";
+        }
+        // parse the expression inside kw___identifier as a reflection member field id
+        else if (Tok.is(tok::kw___record_member_field_identifier)){
+          identifierStrLoc = Tok.getLocation();
+          ExprResult constExprResult(ParseConstantExpression());
+          if (constExprResult.isInvalid()) {
+            llvm::errs() << "No constExprResult\n";
+            return ExprError();
+          }
+          ReflectionTypeTraitExpr* expr = dyn_cast<ReflectionTypeTraitExpr>(constExprResult.get());
+          if (!expr) {
+            llvm::errs() << "No ReflectionTypeTraitExpr\n";
+            return ExprError();
+          }
+          expr->dump();
+          Expr* RTTValue = expr->getValue();
+          if (!RTTValue) {
+            llvm::errs() << "No RTTValue\n";
+            return ExprError();
+          }
+          StringLiteral* stringLiteral = dyn_cast<StringLiteral>(RTTValue);
+          if (!stringLiteral) {
+            llvm::errs() << "No stringLiteral\n";
+            return ExprError();
+          }
+          identifierStr = stringLiteral->getString();
+
+          llvm::errs() << "string literal in __identifier: "  << identifierStr << "\n";
+          llvm::errs() << "source location of string literal in __identifier: ";
+          identifierStrLoc.dump(this->Diags.getSourceManager());
+          llvm::errs() << "\n";
+        }
+
+
+      }
+
       CXXScopeSpec SS;
       ParsedType ObjectType;
       bool MayBePseudoDestructor = false;
@@ -1559,6 +1657,10 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         IdentifierInfo *Id = Tok.getIdentifierInfo();
         SourceLocation Loc = ConsumeToken();
         Name.setIdentifier(Id, Loc);
+      } else if (insideKwIdentifier && identifierStr.size() > 0) {
+        IdentifierInfo *Id = PP.getIdentifierInfo(identifierStr);
+        SourceLocation Loc = identifierStrLoc;
+        Name.setIdentifier(Id, Loc);
       } else if (ParseUnqualifiedId(SS, 
                                     /*EnteringContext=*/false, 
                                     /*AllowDestructorName=*/true,
@@ -1572,6 +1674,10 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
                                             OpKind, SS, TemplateKWLoc, Name,
                                  CurParsedObjCImpl ? CurParsedObjCImpl->Dcl : 0,
                                             Tok.is(tok::l_paren));
+      if (insideKwIdentifier) {
+        ConsumeParen(); // consume right paren
+        insideKwIdentifier = false;
+      }
       break;
     }
     case tok::plusplus:    // postfix-expression: postfix-expression '++'

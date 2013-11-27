@@ -426,6 +426,8 @@ KEYWORD(__record_member_field_bit_field_size   , KEYCXX)
 KEYWORD(__record_member_field_is_anon_bit_field, KEYCXX)
 KEYWORD(__record_member_field_is_reference     , KEYCXX)
 
+// New experimental member access
+KEYWORD(__identifier				, KEYCXX)
 
 // Embarcadero Expression Traits
 KEYWORD(__is_lvalue_expr            , KEYCXX)
