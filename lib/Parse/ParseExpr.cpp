@@ -1255,6 +1255,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::kw___record_member_field_bit_field_size:
   case tok::kw___record_member_field_is_anon_bit_field:
   case tok::kw___record_member_field_is_reference:
+  case tok::kw___record_member_function_count:
     return ParseReflectionTypeTrait();
 
   case tok::kw___is_trivially_constructible:

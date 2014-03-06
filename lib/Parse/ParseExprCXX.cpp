@@ -2750,7 +2750,7 @@ static ReflectionTypeTrait ReflectionTypeTraitFromTokKind(tok::TokenKind kind) {
   case tok::kw___record_member_field_bit_field_size: return RTT_RecordMemberFieldBitFieldSize;
   case tok::kw___record_member_field_is_anon_bit_field: return RTT_RecordMemberFieldIsAnonBitField;
   case tok::kw___record_member_field_is_reference: return RTT_RecordMemberFieldIsReference;
-
+  case tok::kw___record_member_function_count:        return RTT_RecordMemberFunctionCount;
   }
 }
 
@@ -2861,6 +2861,7 @@ ExprResult Parser::ParseReflectionTypeTrait() {
   case RTT_RecordVirtualBaseCount:
 
   case RTT_RecordMemberFieldCount:
+  case RTT_RecordMemberFunctionCount:
 
     // Nothing more to parse
     break;

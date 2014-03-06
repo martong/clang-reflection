@@ -3857,6 +3857,7 @@ ExprResult Sema::BuildReflectionTypeTrait(ReflectionTypeTrait RTT,
   case RTT_RecordBaseCount:
   case RTT_RecordVirtualBaseCount:
   case RTT_RecordMemberFieldCount:
+  case RTT_RecordMemberFunctionCount:
   case RTT_RecordMemberFieldBitFieldSize:
     // always "size_t" result type:
     VType = Context.getSizeType();
@@ -4150,6 +4151,19 @@ ExprResult Sema::BuildReflectionTypeTrait(ReflectionTypeTrait RTT,
       Value = IntegerLiteral::Create(Context, apval, VType, KWLoc);
       break;
                                      }
+
+    case RTT_RecordMemberFunctionCount: {
+       // Complete definition required!
+       const CXXRecordDecl *RD = RequireRecordType(*this, KWLoc, TSInfo, true);
+       if (!RD)
+         return ExprError();
+
+       // Count the range
+       uint64_t val = std::distance(RD->method_begin(), RD->method_end());
+       llvm::APSInt apval = Context.MakeIntValue(val, VType);
+       Value = IntegerLiteral::Create(Context, apval, VType, KWLoc);
+       break;
+                                      }
 
     case RTT_RecordBaseIsVirtual: {
       // Try to get the requested base specifier

@@ -128,7 +128,9 @@ namespace clang {
     RTT_RecordMemberFieldIsBitField,
     RTT_RecordMemberFieldBitFieldSize,
     RTT_RecordMemberFieldIsAnonBitField,
-    RTT_RecordMemberFieldIsReference
+    RTT_RecordMemberFieldIsReference,
+
+	RTT_RecordMemberFunctionCount
   };
 
 }
